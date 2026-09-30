@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Rx Label Lookup Review</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one wide column: intro + reviewer card, sticky toolbar, then one table per clinical group. */
+:root {
+  --bg: #f5f7fa; --surface: #ffffff; --ink: #14202e; --muted: #56657a; --line: #dbe2eb;
+  --accent: #1d5fb8; --accent-soft: #e6eefa; --ok: #1d7a4e; --ok-soft: #e3f3ea;
+  --warn: #9a5b00; --warn-soft: #fbf0dc;
+  --f-display: "Source Serif 4", Georgia, serif;
+  --f-body: "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f151d; --surface: #17202b; --ink: #e5ebf3; --muted: #97a6ba; --line: #2a3747;
+    --accent: #7fb0f5; --accent-soft: #1b2c44; --ok: #6fcf9c; --ok-soft: #16301f; --warn: #f0b75c; --warn-soft: #33270f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f151d; --surface: #17202b; --ink: #e5ebf3; --muted: #97a6ba; --line: #2a3747;
+  --accent: #7fb0f5; --accent-soft: #1b2c44; --ok: #6fcf9c; --ok-soft: #16301f; --warn: #f0b75c; --warn-soft: #33270f;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { margin: 0; padding: 0 16px; background: var(--bg); color: var(--ink); font: 400 1rem/1.5 var(--f-body); }
+.wrap { max-width: 72rem; margin: 0 auto; padding-block: 2rem 4rem; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1 { font: 700 clamp(1.8rem, 4vw, 2.4rem)/1.1 var(--f-display); margin: 0; text-wrap: balance; }
+.intro { display: grid; gap: .6rem; max-width: 46rem; }
+.intro p { margin: 0; color: var(--muted); }
+.intro ol { margin: 0; padding-left: 1.2rem; color: var(--muted); display: grid; gap: .25rem; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.2rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: end; }
+.field { display: grid; gap: .3rem; }
+.field label { font: 600 .75rem var(--f-body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+input[type=text], select, textarea { font: 400 .95rem var(--f-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: .5rem .65rem; }
+input[type=text]:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+.toolbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 2; background: var(--bg); padding-block: .75rem; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; }
+.toolbar .left { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; flex: 1; min-width: 0; }
+.toolbar input { flex: 1; min-width: 10rem; max-width: 22rem; }
+.progress { font: 600 .9rem var(--f-body); font-variant-numeric: tabular-nums; }
+.progress span { color: var(--muted); font-weight: 400; }
+.bar { height: 6px; width: 10rem; background: var(--line); border-radius: 99px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--ok); width: 0; transition: width .2s; }
+.btn { border: 0; border-radius: 8px; background: var(--accent); color: var(--surface); font: 600 .9rem var(--f-body); padding: .55rem 1rem; cursor: pointer; }
+.btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+h2 { font: 600 .8rem var(--f-body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: .5rem 0 0; }
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+table { width: 100%; border-collapse: collapse; font-size: .9rem; min-width: 52rem; }
+th, td { text-align: left; padding: .6rem .75rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 .7rem var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+tr.approved { background: var(--ok-soft); }
+tr.change { background: var(--warn-soft); }
+td.plain { font-weight: 600; }
+td.icd code { font: 500 .8rem var(--f-mono); color: var(--accent); background: var(--accent-soft); padding: .1rem .4rem; border-radius: 4px; white-space: nowrap; }
+td.words { color: var(--muted); font-size: .82rem; max-width: 18rem; }
+td.num { color: var(--muted); font: 400 .8rem var(--f-mono); }
+.verdict { display: flex; gap: .3rem; white-space: nowrap; }
+.verdict button { font: 600 .78rem var(--f-body); border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 6px; padding: .3rem .55rem; cursor: pointer; }
+.verdict button[aria-pressed="true"].ok { background: var(--ok); border-color: var(--ok); color: var(--surface); }
+.verdict button[aria-pressed="true"].chg { background: var(--warn); border-color: var(--warn); color: var(--surface); }
+td.note textarea { width: 100%; min-width: 12rem; min-height: 2.3rem; resize: vertical; font-size: .85rem; }
+.export { display: grid; gap: .6rem; }
+.export textarea { width: 100%; min-height: 12rem; font: 400 .82rem var(--f-mono); }
+.hint { font-size: .82rem; color: var(--muted); }
+.toast { position: fixed; left: 50%; bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: .6rem 1rem; border-radius: 8px; font-size: .9rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="intro">
+    <h1>Clinical review: condition names and ICD-10 codes</h1>
+    <p>When someone searches a drug in <a href="./">Rx Label Lookup</a>, the “Used for” list is built from the table below. Each row turns wording found on an FDA label into an everyday name, a medical term and an ICD-10-CM code.</p>
+    <ol>
+      <li>Enter your name and role.</li>
+      <li>For each row, check the everyday name, the medical term and the ICD-10-CM code. Choose <b>Approve</b> or <b>Needs change</b>, and write the correction in Notes.</li>
+      <li>When you're done, choose <b>Copy my feedback</b> and paste it into an email or text to the person who sent you this link.</li>
+    </ol>
+    <p class="hint">Your answers are saved in this browser only, so you can stop and come back later on the same device.</p>
+  </div>
+
+  <div class="card">
+    <div class="field"><label for="reviewer">Your name</label><input type="text" id="reviewer" placeholder="First and last name"></div>
+    <div class="field"><label for="role">Role</label>
+      <select id="role"><option value="">Choose…</option><option>RPh</option><option>DO</option><option>MD</option><option>Other</option></select></div>
+  </div>
+
+  <div class="toolbar">
+    <div class="left">
+      <input type="text" id="filter" placeholder="Filter by name, term or code" aria-label="Filter rows">
+      <select id="show" aria-label="Show rows">
+        <option value="all">All rows</option><option value="todo">Not reviewed yet</option><option value="change">Needs change</option><option value="approved">Approved</option>
+      </select>
+    </div>
+    <div class="left" style="flex:0 1 auto">
+      <div class="progress" id="progress"></div>
+      <div class="bar"><i id="barFill"></i></div>
+      <button class="btn" type="button" id="copyBtn">Copy my feedback</button>
+    </div>
+  </div>
+
+  <div id="tables" style="display:grid;grid-template-columns:minmax(0,1fr);gap:.75rem"></div>
+
+  <section class="export" id="exportBox" hidden>
+    <h2>Your feedback</h2>
+    <p class="hint">If copying didn't work, select all the text below and copy it yourself.</p>
+    <textarea id="exportText" readonly></textarea>
+  </section>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="conditions.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const KEY = "rx-review-v1";
+let state = { reviewer: "", role: "", rows: {} };
+try { state = Object.assign(state, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
+
+// Rows are keyed by medical term so saved answers survive reordering of the list.
+const rows = CONDITIONS.map(([re, medical, plain, icd, group], i) => ({ n: i + 1, re, medical, plain, icd, group, id: medical }));
+
+// Show the regex as the label wording it looks for, readable by a non-programmer.
+function words(re) {
+  let s = re.source
+    .replace(/\(\?<!?[^)]*\)|\(\?![^)]*\)/g, "")      // look-arounds
+    .replace(/\\b/g, "").replace(/\\\./g, ".").replace(/\[- \]\??|-\?/g, "-")
+    .replace(/\[\^\.\]\{\d+,\d+\}/g, " … ").replace(/\?:/g, "")
+    .replace(/\(([^()]+)\)\?/g, "($1)").replace(/\s\?/g, " ");
+  return s.split("|").map(w => w.replace(/\(([^()]+)\)/g, (m, g) => "(" + g.split("|").join(" / ") + ")").trim()).filter(Boolean).join(" • ");
+}
+
+function render() {
+  const f = $("#filter").value.trim().toLowerCase(), show = $("#show").value;
+  const groups = [...new Set(rows.map(r => r.group))];
+  $("#tables").innerHTML = groups.map(g => {
+    const rs = rows.filter(r => r.group === g).filter(r => {
+      const v = state.rows[r.id]?.v || "";
+      if (show === "todo" && v) return false;
+      if (show === "change" && v !== "change") return false;
+      if (show === "approved" && v !== "approved") return false;
+      return !f || [r.plain, r.medical, r.icd, words(r.re)].join(" ").toLowerCase().includes(f);
+    });
+    if (!rs.length) return "";
+    return `<h2>${esc(g)}</h2><div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>Everyday name</th><th>Medical term</th><th>ICD-10-CM</th><th>Label wording it matches</th><th>Your review</th><th>Notes / correction</th></tr></thead>
+      <tbody>${rs.map(r => {
+        const st = state.rows[r.id] || {};
+        return `<tr class="${st.v || ""}" data-id="${esc(r.id)}">
+          <td class="num">${r.n}</td>
+          <td class="plain">${esc(r.plain)}</td>
+          <td>${esc(r.medical)}</td>
+          <td class="icd">${r.icd ? `<code>${esc(r.icd)}</code>` : `<span class="hint">No single code (risk reduction)</span>`}</td>
+          <td class="words">${esc(words(r.re))}</td>
+          <td><div class="verdict">
+            <button type="button" class="ok" data-v="approved" aria-pressed="${st.v === "approved"}">Approve</button>
+            <button type="button" class="chg" data-v="change" aria-pressed="${st.v === "change"}">Needs change</button>
+          </div></td>
+          <td class="note"><textarea id="note-${r.n}" aria-label="Notes for ${esc(r.plain)}" placeholder="Optional">${esc(st.note || "")}</textarea></td>
+        </tr>`;
+      }).join("")}</tbody></table></div>`;
+  }).join("") || `<p class="hint">No rows match this filter.</p>`;
+  progress();
+}
+
+function progress() {
+  const done = rows.filter(r => state.rows[r.id]?.v).length;
+  const chg = rows.filter(r => state.rows[r.id]?.v === "change").length;
+  $("#progress").innerHTML = `${done} of ${rows.length} reviewed <span>· ${chg} need changes</span>`;
+  $("#barFill").style.width = (100 * done / rows.length) + "%";
+}
+
+function feedback() {
+  const who = [state.reviewer || "Reviewer", state.role && `(${state.role})`].filter(Boolean).join(" ");
+  const done = rows.filter(r => state.rows[r.id]?.v);
+  const changes = rows.filter(r => state.rows[r.id]?.v === "change");
+  const notesOnly = rows.filter(r => state.rows[r.id]?.v === "approved" && state.rows[r.id]?.note?.trim());
+  const line = r => `#${r.n} ${r.plain} | ${r.medical} | ${r.icd}` + (state.rows[r.id]?.note?.trim() ? `\n    → ${state.rows[r.id].note.trim()}` : "");
+  return [
+    `Rx Label Lookup review from ${who}`,
+    `Date: ${new Date().toLocaleDateString()}`,
+    `Reviewed ${done.length} of ${rows.length} rows. Approved ${done.length - changes.length}, needs change ${changes.length}.`,
+    "",
+    `NEEDS CHANGE (${changes.length})`,
+    ...(changes.length ? changes.map(line) : ["  none"]),
+    "",
+    ...(notesOnly.length ? [`APPROVED WITH NOTES (${notesOnly.length})`, ...notesOnly.map(line), ""] : []),
+    rows.length - done.length ? `NOT YET REVIEWED: ${rows.filter(r => !state.rows[r.id]?.v).map(r => "#" + r.n).join(", ")}` : "All rows reviewed."
+  ].join("\n");
+}
+
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 2200); }
+
+$("#reviewer").value = state.reviewer; $("#role").value = state.role;
+$("#reviewer").addEventListener("input", e => { state.reviewer = e.target.value; save(); });
+$("#role").addEventListener("change", e => { state.role = e.target.value; save(); });
+$("#filter").addEventListener("input", render);
+$("#show").addEventListener("change", render);
+$("#tables").addEventListener("click", e => {
+  const b = e.target.closest("[data-v]"); if (!b) return;
+  const tr = b.closest("tr"), id = tr.dataset.id, st = state.rows[id] || (state.rows[id] = {});
+  st.v = st.v === b.dataset.v ? "" : b.dataset.v;   // click again to clear
+  tr.className = st.v;
+  tr.querySelectorAll("[data-v]").forEach(x => x.setAttribute("aria-pressed", x.dataset.v === st.v));
+  save(); progress();
+});
+$("#tables").addEventListener("input", e => {
+  if (e.target.tagName !== "TEXTAREA") return;
+  const id = e.target.closest("tr").dataset.id;
+  (state.rows[id] || (state.rows[id] = {})).note = e.target.value; save();
+});
+$("#copyBtn").addEventListener("click", async () => {
+  const text = feedback();
+  $("#exportText").value = text; $("#exportBox").hidden = false;
+  try { await navigator.clipboard.writeText(text); toast("Feedback copied. Paste it into an email or text."); }
+  catch (e) { $("#exportText").select(); toast("Select the text below and copy it"); }
+  $("#exportBox").scrollIntoView({ behavior: "smooth" });
+});
+render();
+</script>
+</body>
+</html>

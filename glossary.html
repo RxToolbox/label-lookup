@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Rx Label Lookup Glossary</title>
+<meta name="description" content="Plain-English meanings of the drug and label terms used in Rx Label Lookup.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column (~44rem); a jump bar, then term sections as definition lists. */
+:root {
+  --bg: #f5f7fa; --surface: #ffffff; --ink: #14202e; --muted: #56657a; --line: #dbe2eb;
+  --accent: #1d5fb8; --accent-soft: #e6eefa; --warn: #9a5b00; --warn-soft: #fbf0dc;
+  --f-display: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --f-body: "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f151d; --surface: #17202b; --ink: #e5ebf3; --muted: #97a6ba; --line: #2a3747;
+    --accent: #7fb0f5; --accent-soft: #1b2c44; --warn: #f0b75c; --warn-soft: #33270f; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f151d; --surface: #17202b; --ink: #e5ebf3; --muted: #97a6ba; --line: #2a3747;
+  --accent: #7fb0f5; --accent-soft: #1b2c44; --warn: #f0b75c; --warn-soft: #33270f; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; padding: 0 16px; background: var(--bg); color: var(--ink); font: 400 1rem/1.6 var(--f-body); }
+.wrap { max-width: 44rem; margin: 0 auto; padding-block: 2rem 4rem; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2rem; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.topnav { display: flex; gap: 1.2rem; font: 600 .9rem var(--f-body); }
+.topnav a { text-decoration: none; }
+.topnav a[aria-current] { color: var(--ink); }
+.eyebrow { font: 600 .72rem/1 var(--f-body); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+h1 { font: 700 clamp(2rem, 5vw, 2.6rem)/1.1 var(--f-display); margin: .4rem 0 .6rem; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); }
+.jump { display: flex; flex-wrap: wrap; gap: .4rem; }
+.jump a { font: 500 .85rem var(--f-body); text-decoration: none; background: var(--accent-soft); border-radius: 99px; padding: .3rem .8rem; }
+section { display: grid; gap: .9rem; scroll-margin-top: 1rem; }
+h2 { font: 700 1.35rem/1.25 var(--f-display); margin: 0; padding-bottom: .5rem; border-bottom: 1px solid var(--line); text-wrap: balance; }
+dl { margin: 0; display: grid; gap: 1.1rem; }
+dt { font: 600 1.05rem var(--f-body); }
+dt small { font: 400 .85rem var(--f-body); color: var(--muted); margin-left: .35rem; }
+dd { margin: .2rem 0 0; color: var(--ink); }
+dd p { margin: 0 0 .35rem; }
+.eg { display: block; font-size: .9rem; color: var(--muted); }
+.eg b { color: var(--ink); font-weight: 600; }
+code { font: 500 .85em var(--f-mono); background: var(--accent-soft); color: var(--accent); padding: .05rem .35rem; border-radius: 4px; }
+.callout { background: var(--warn-soft); border-radius: 10px; padding: .8rem 1rem; font-size: .95rem; }
+.callout b { color: var(--warn); }
+.summary { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 1.1rem 1.2rem; }
+.summary p { margin: 0; }
+footer { font-size: .8rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 1.25rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="topnav" aria-label="Pages">
+    <a href="./">← Drug lookup</a>
+    <a href="glossary.html" aria-current="page">Glossary</a>
+  </nav>
+
+  <header>
+    <span class="eyebrow">Plain English</span>
+    <h1>What do these terms mean?</h1>
+    <p class="lede">A guide to the words used in Rx Label Lookup. Examples use <b>Mounjaro</b> throughout.</p>
+  </header>
+
+  <nav class="jump" aria-label="Sections">
+    <a href="#medicine">The medicine</a>
+    <a href="#paperwork">The label</a>
+    <a href="#approval">Approval</a>
+    <a href="#medical">Medical terms</a>
+    <a href="#sources">Data sources</a>
+  </nav>
+
+  <div class="summary">
+    <p><b>In one sentence:</b> the app takes the drug name you type, finds the FDA-approved label for it, reads the “what it’s for” section (the indications), and turns it into everyday words with a diagnosis code, showing exactly where each piece came from.</p>
+  </div>
+
+  <section id="medicine">
+    <h2>The medicine itself</h2>
+    <dl>
+      <div><dt>Drug <small>also called active ingredient</small></dt>
+        <dd>The chemical that does the work in your body.<span class="eg">Example: <b>tirzepatide</b></span></dd></div>
+      <div><dt>Generic name</dt>
+        <dd>The official scientific name of that ingredient. Every company uses the same one.<span class="eg">Example: <b>tirzepatide</b></span></dd></div>
+      <div><dt>Brand name</dt>
+        <dd>The trademarked name a company sells the drug under. One ingredient can have several brands, each approved for different uses.<span class="eg">Example: <b>Mounjaro</b> (for diabetes) and <b>Zepbound</b> (for weight loss) are both tirzepatide, made by Eli Lilly.</span></dd></div>
+      <div><dt>Generic drug</dt>
+        <dd>A lower-cost copy made by another company after the patent expires. Same ingredient, works the same way.<span class="eg">Example: <b>Lipitor</b> is the brand; “atorvastatin calcium” tablets from other makers are generics.</span></dd></div>
+    </dl>
+    <p class="callout"><b>Watch out:</b> “generic” is used two ways. A <i>generic name</i> is what the ingredient is called. A <i>generic drug</i> is a lower-cost copy.</p>
+  </section>
+
+  <section id="paperwork">
+    <h2>The label</h2>
+    <dl>
+      <div><dt>Label <small>also called prescribing information or package insert</small></dt>
+        <dd>The official, FDA-approved document for a medicine. It is the long folded paper in the box with tiny print, covering what the drug is for, how to take it, side effects and warnings.</dd></div>
+      <div><dt>Indication</dt>
+        <dd>The official reason to use the drug: the condition the FDA approved it for. It is section 1 of the label.<span class="eg">Example: Mounjaro has two: <b>type 2 diabetes</b>, and <b>lowering heart risk</b> in people with type 2 diabetes.</span></dd></div>
+      <div><dt>Label version</dt>
+        <dd>Labels are updated when new uses or warnings are approved. Each update gets a new version number and effective date.<span class="eg">Example: Mounjaro’s heart-risk indication was added in a recent label update.</span></dd></div>
+    </dl>
+  </section>
+
+  <section id="approval">
+    <h2>Approval</h2>
+    <dl>
+      <div><dt>FDA application</dt>
+        <dd><p>The company’s formal request to sell the drug. Each has a number:</p>
+          <p><code>NDA</code> New Drug Application, for a new medicine<br><code>ANDA</code> Abbreviated NDA, for a generic copy<br><code>BLA</code> Biologics License Application, for medicines made from living cells (such as Humira)</p>
+          <span class="eg">Example: Mounjaro is <b>NDA215866</b>.</span></dd></div>
+      <div><dt>Approved</dt>
+        <dd>The FDA reviewed the evidence and allowed the drug to be sold for its indications.</dd></div>
+      <div><dt>Manufacturer and repackager</dt>
+        <dd>The manufacturer makes the drug (Eli Lilly). A repackager buys it and repackages it, for example into smaller packs for clinics, and files its own copy of the label. Those copies can be out of date, so the app uses only the newest label for each application.</dd></div>
+      <div><dt>Prescription and over-the-counter (OTC)</dt>
+        <dd>A prescription drug needs a doctor’s order. An OTC drug is sold off the shelf, like Advil.</dd></div>
+    </dl>
+  </section>
+
+  <section id="medical">
+    <h2>Medical terms on the site</h2>
+    <dl>
+      <div><dt>ICD-10 code <small>ICD-10-CM in the U.S.</small></dt>
+        <dd>A standard code for a diagnosis, used on medical records and insurance claims worldwide. The FDA does not assign these; this site adds them.<span class="eg">Examples: <code>E11</code> type 2 diabetes · <code>I10</code> high blood pressure · <code>E78.5</code> high cholesterol</span></dd></div>
+      <div><dt>MACE</dt>
+        <dd>“Major adverse cardiovascular events”: doctor shorthand for <b>heart attack, stroke, or death from heart disease</b>. A drug that “reduces MACE” lowers the chance of those.</dd></div>
+      <div><dt>Rx</dt>
+        <dd>The standard symbol for a prescription.</dd></div>
+    </dl>
+  </section>
+
+  <section id="sources">
+    <h2>Where the data comes from</h2>
+    <dl>
+      <div><dt>FDA</dt>
+        <dd>The U.S. Food and Drug Administration, the government agency that approves medicines.</dd></div>
+      <div><dt>openFDA</dt>
+        <dd>The FDA’s free public database that this app reads from on every search. <a href="https://open.fda.gov/" target="_blank" rel="noopener">open.fda.gov ↗</a></dd></div>
+      <div><dt>Drugs@FDA</dt>
+        <dd>The FDA’s record of every drug approval: who, what and when.</dd></div>
+      <div><dt>DailyMed</dt>
+        <dd>The National Library of Medicine’s website with the official copy of every drug label. The “Source” links in the app go there. <a href="https://dailymed.nlm.nih.gov/" target="_blank" rel="noopener">dailymed.nlm.nih.gov ↗</a></dd></div>
+    </dl>
+  </section>
+
+  <footer>This glossary is for general understanding only and is not medical advice. Talk to your doctor or pharmacist about your medicines.</footer>
+</div>
+</body>
+</html>

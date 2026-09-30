@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Rx Label Lookup</title>
+<meta name="description" content="Search any drug and see its FDA-approved indications, brand names and generic names, live from openFDA.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one centered 60rem column: masthead + search, then a summary strip, name chips, applications table, indication cards. */
+:root {
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --ink: #14202e;
+  --muted: #56657a;
+  --line: #dbe2eb;
+  --accent: #1d5fb8;
+  --accent-soft: #e6eefa;
+  --ok: #1d7a4e;
+  --ok-soft: #e3f3ea;
+  --warn: #9a5b00;
+  --warn-soft: #fbf0dc;
+  --err: #b3261e;
+  --err-soft: #fbe6e4;
+  --shadow: 0 1px 2px rgba(20, 32, 46, .06), 0 4px 16px rgba(20, 32, 46, .05);
+  --f-display: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --f-body: "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f151d; --surface: #17202b; --ink: #e5ebf3; --muted: #97a6ba; --line: #2a3747;
+    --accent: #7fb0f5; --accent-soft: #1b2c44; --ok: #6fcf9c; --ok-soft: #16301f;
+    --warn: #f0b75c; --warn-soft: #33270f; --err: #f28b82; --err-soft: #3a1a18;
+    --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f151d; --surface: #17202b; --ink: #e5ebf3; --muted: #97a6ba; --line: #2a3747;
+  --accent: #7fb0f5; --accent-soft: #1b2c44; --ok: #6fcf9c; --ok-soft: #16301f;
+  --warn: #f0b75c; --warn-soft: #33270f; --err: #f28b82; --err-soft: #3a1a18;
+  --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 400 1rem/1.55 var(--f-body);
+  padding: 0 16px;
+}
+/* minmax(0, 1fr) lets grid columns shrink to the screen; wide tables then scroll inside their own box. */
+.wrap { max-width: 60rem; margin: 0 auto; padding-block: 2.5rem 4rem; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2rem; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Page nav */
+.topnav { display: flex; flex-wrap: wrap; gap: .4rem 1.2rem; font: 600 .9rem var(--f-body); margin-bottom: -1rem; }
+.topnav a { text-decoration: none; }
+.topnav a[aria-current] { color: var(--ink); }
+
+/* Masthead */
+.mast { display: grid; gap: .5rem; }
+.eyebrow { font: 600 .72rem/1 var(--f-body); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+h1 { font: 700 clamp(2rem, 5vw, 2.8rem)/1.1 var(--f-display); margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+.lede { margin: 0; color: var(--muted); max-width: 40rem; }
+
+/* Search */
+form.search { display: flex; gap: .5rem; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: .4rem; box-shadow: var(--shadow); }
+form.search:focus-within { border-color: var(--accent); }
+.search label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.search input {
+  flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink);
+  font: 500 1.125rem var(--f-body); padding: .7rem .8rem; outline: none;
+}
+.search input::placeholder { color: var(--muted); font-weight: 400; }
+.btn {
+  border: 0; border-radius: 10px; background: var(--accent); color: var(--surface);
+  font: 600 1rem var(--f-body); padding: .7rem 1.4rem; cursor: pointer;
+}
+.btn:hover { filter: brightness(1.08); }
+.btn:disabled { opacity: .6; cursor: progress; }
+.btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); padding: .5rem .9rem; font-size: .9rem; }
+.btn.ghost:hover { background: var(--accent-soft); filter: none; }
+.try { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; font-size: .875rem; color: var(--muted); }
+.try button { font: 500 .85rem var(--f-body); color: var(--accent); background: var(--accent-soft); border: 0; border-radius: 99px; padding: .3rem .75rem; cursor: pointer; }
+
+/* Status */
+.status { border-radius: var(--r); padding: 1rem 1.2rem; font-size: .95rem; }
+.status.err { background: var(--err-soft); color: var(--err); }
+.status.info { background: var(--accent-soft); color: var(--ink); }
+.loading { display: flex; gap: .7rem; align-items: center; color: var(--muted); }
+.spin { width: 1.1rem; height: 1.1rem; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation-duration: 3s; } }
+
+/* Results */
+#results { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2.25rem; }
+.summary { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 1rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--line); }
+.summary h2 { font: 700 1.9rem/1.15 var(--f-display); margin: 0; text-transform: capitalize; text-wrap: balance; }
+.summary .sample { font: 600 .7rem var(--f-body); letter-spacing: .1em; text-transform: uppercase; color: var(--warn); background: var(--warn-soft); padding: .2rem .5rem; border-radius: 4px; vertical-align: middle; margin-left: .5rem; }
+.summary > div:first-child { flex: 1 1 26rem; min-width: 0; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem 1.5rem; margin-top: .75rem; }
+.stat { display: grid; align-content: start; gap: .15rem; }
+.stat b { font: 600 1.35rem var(--f-body); font-variant-numeric: tabular-nums; }
+.stat span { font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+
+section.block { display: grid; grid-template-columns: minmax(0, 1fr); gap: .9rem; min-width: 0; }
+.block-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+h3 { font: 600 .8rem var(--f-body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0; }
+.hint { font-size: .82rem; color: var(--muted); }
+
+.names { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 1.5rem; }
+.chips { display: flex; flex-wrap: wrap; gap: .45rem; }
+.chip {
+  display: inline-flex; align-items: center; gap: .45rem; border: 1px solid var(--line); background: var(--surface);
+  border-radius: 99px; padding: .3rem .4rem .3rem .8rem; font-size: .9rem; cursor: pointer; color: var(--ink); font-family: var(--f-body);
+}
+.chip:hover { border-color: var(--accent); }
+.chip small { font: 500 .72rem var(--f-mono); color: var(--muted); background: var(--bg); border-radius: 99px; padding: .1rem .45rem; font-variant-numeric: tabular-nums; }
+.chip.brand { font-weight: 600; }
+.more-chips { font: 500 .85rem var(--f-body); color: var(--accent); background: none; border: 0; cursor: pointer; padding: .3rem; }
+
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+th, td { text-align: left; padding: .65rem .9rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 .72rem var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.mono, .mono { font-family: var(--f-mono); font-size: .82rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pill { display: inline-block; font: 600 .72rem var(--f-body); padding: .15rem .5rem; border-radius: 99px; white-space: nowrap; }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.neutral { background: var(--bg); color: var(--muted); }
+.kind { display: inline-block; font: 600 .68rem var(--f-mono); padding: .1rem .35rem; border-radius: 4px; background: var(--accent-soft); color: var(--accent); margin-right: .35rem; }
+
+/* Used for (succinct conditions) */
+.uses { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: .6rem; }
+.use { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: .75rem .95rem; display: grid; gap: .15rem; min-width: 0; }
+.use b { font: 600 1rem/1.3 var(--f-body); }
+.use span { font-size: .82rem; color: var(--muted); overflow-wrap: anywhere; }
+.use.other b { font-weight: 500; }
+#usesList { display: grid; gap: 1.25rem; }
+.uses { align-items: start; }
+details.src { margin-top: .35rem; font-size: .82rem; }
+details.src summary { cursor: pointer; color: var(--accent); font-weight: 600; width: fit-content; }
+details.src blockquote { margin: .5rem 0; padding: .45rem .65rem; border-left: 3px solid var(--line); background: var(--bg); color: var(--ink); font-size: .85rem; overflow-wrap: anywhere; }
+details.src mark { background: var(--accent-soft); color: var(--ink); font-weight: 600; padding: 0 .1rem; border-radius: 2px; }
+details.src dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .2rem .7rem; margin: .4rem 0; }
+details.src dt { color: var(--muted); }
+details.src dd { margin: 0; overflow-wrap: anywhere; }
+details.src a { font-weight: 600; text-decoration: none; }
+details.prov { font-size: .88rem; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: .7rem 1rem; }
+details.prov summary { cursor: pointer; font-weight: 600; color: var(--accent); }
+details.prov ul { margin: .6rem 0 0; padding-left: 1.1rem; display: grid; gap: .35rem; color: var(--muted); }
+details.prov b { color: var(--ink); }
+.use-group { display: grid; gap: .6rem; }
+.use-group h4 { margin: 0; font: 700 1.1rem/1.3 var(--f-display); display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem .6rem; }
+.use-group h4 span { font: 400 .85rem var(--f-body); color: var(--muted); }
+.use-group h4 code { font: 500 .72rem var(--f-mono); color: var(--muted); }
+.scope-note { margin: 0; font-size: .9rem; color: var(--muted); background: var(--accent-soft); border-radius: 8px; padding: .6rem .8rem; }
+.scope-note b { color: var(--ink); }
+.linkish { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.use-top { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; }
+.icd { font: 500 .75rem var(--f-mono); color: var(--accent); background: var(--accent-soft); border-radius: 4px; padding: .12rem .4rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Indications */
+.ind-list { display: grid; gap: 1rem; list-style: none; margin: 0; padding: 0; }
+.ind {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 1.2rem 1.3rem; display: grid; gap: .8rem; min-width: 0;
+}
+.ind-top { display: flex; flex-wrap: wrap; gap: .5rem 1rem; justify-content: space-between; align-items: start; }
+.ind-title { font: 700 1.2rem/1.25 var(--f-display); margin: 0; text-transform: capitalize; }
+.ind-brands { font-size: .88rem; color: var(--muted); }
+.ind-brands b { color: var(--ink); font-weight: 600; }
+.ind-meta { display: flex; flex-wrap: wrap; gap: .4rem .9rem; font-size: .8rem; color: var(--muted); }
+.ind-body { display: grid; gap: .6rem; max-width: 68ch; font-size: .95rem; min-width: 0; overflow-wrap: anywhere; }
+.ind-body p { margin: 0; }
+.ind-body h4 { font: 600 .95rem var(--f-body); margin: .35rem 0 0; color: var(--accent); }
+.ind-body ul { margin: 0; padding-left: 1.2rem; display: grid; gap: .3rem; }
+.ind-body .lim { background: var(--warn-soft); border-radius: 6px; padding: .55rem .75rem; font-size: .9rem; }
+.ind-body .lim strong { color: var(--warn); }
+.ind.clamped .ind-body { max-height: 13rem; overflow: hidden; mask-image: linear-gradient(to bottom, #000 70%, transparent); -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent); }
+.ind-actions { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+.textbtn { background: none; border: 0; padding: 0; color: var(--accent); font: 600 .85rem var(--f-body); cursor: pointer; }
+.ind-actions a { font-size: .85rem; font-weight: 600; text-decoration: none; }
+
+footer { font-size: .8rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 1.25rem; display: grid; gap: .4rem; }
+.toast { position: fixed; left: 50%; bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: .6rem 1rem; border-radius: 8px; font-size: .9rem; }
+
+@media (max-width: 34rem) {
+  .search input { font-size: 1rem; padding: .6rem .6rem; }
+  form.search .btn { padding: .6rem 1rem; }
+  .ind { padding: 1rem; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="topnav" aria-label="Pages">
+    <a href="./" aria-current="page">Drug lookup</a>
+    <a href="glossary.html">Glossary: what do these terms mean?</a>
+  </nav>
+  <header class="mast">
+    <span class="eyebrow">Live from openFDA</span>
+    <h1>Rx Label Lookup</h1>
+    <p class="lede">Type a brand or generic drug name to see its FDA-approved indications, every brand and generic name on file, and the approved applications behind them.</p>
+  </header>
+
+  <div style="display:grid;gap:.75rem">
+    <form class="search" id="searchForm" role="search" autocomplete="off">
+      <label for="q">Drug name</label>
+      <input id="q" name="q" type="search" placeholder="e.g. Lipitor, metformin, adalimumab" required minlength="2" enterkeyhint="search">
+      <button class="btn" id="goBtn" type="submit">Search</button>
+    </form>
+    <div class="try" id="tryRow">Try:
+      <button type="button" data-q="Lipitor">Lipitor</button>
+      <button type="button" data-q="metformin">metformin</button>
+      <button type="button" data-q="adalimumab">adalimumab</button>
+      <button type="button" data-q="semaglutide">semaglutide</button>
+      <button type="button" data-q="sertraline">sertraline</button>
+    </div>
+  </div>
+
+  <div id="status" hidden></div>
+  <main id="results" aria-live="polite"></main>
+
+  <footer>
+    <div>New to these terms? Read the <a href="glossary.html">glossary</a>.</div>
+    <div>Data: U.S. Food &amp; Drug Administration, <a href="https://open.fda.gov/" target="_blank" rel="noopener">openFDA</a> drug label and Drugs@FDA endpoints. Queried live on every search.</div>
+    <div>ICD-10-CM codes are matched by this site at the category level for reference, not taken from the FDA label. Confirm the specific billable code before clinical or billing use.</div>
+    <div>While the everyday condition names and ICD-10-CM mappings on this site have been reviewed by a pharmacist (RPh) and a physician (DO), this site is for general information only and is not medical advice. Label data is pulled live from openFDA, which the FDA notes is unvalidated. Always check the full prescribing information, and talk to your doctor or pharmacist before making any decisions about your medicines.</div>
+  </footer>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="conditions.js"></script>
+<script>
+/* ---------- Config ---------- */
+// Optional: an openFDA API key raises the limit from 1,000 to 120,000 requests/day per key.
+// Get one free at https://open.fda.gov/apis/authentication/ . Leave empty to run keyless.
+const OPENFDA_API_KEY = "";
+const API = "https://api.fda.gov/drug";
+const LABEL_PAGE = 15;
+const DEFAULT_QUERY = "Lipitor";
+
+/* ---------- Helpers ---------- */
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const title = s => String(s || "").toLowerCase().replace(/\b([a-z])/g, m => m.toUpperCase());
+const fmtDate = d => d && d.length === 8 ? new Date(+d.slice(0, 4), +d.slice(4, 6) - 1, +d.slice(6, 8)).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "—";
+const quote = s => '"' + s.replace(/["\\]/g, " ").trim() + '"';
+
+async function fda(path, params, retry = 1) {
+  const parts = Object.entries(params).map(([k, v]) => k === "search" ? `search=${v}` : `${k}=${encodeURIComponent(v)}`);
+  if (OPENFDA_API_KEY) parts.push("api_key=" + encodeURIComponent(OPENFDA_API_KEY));
+  const res = await fetch(`${API}/${path}.json?${parts.join("&")}`);
+  if (res.status >= 500 && retry > 0) { await new Promise(r => setTimeout(r, 900)); return fda(path, params, retry - 1); } // openFDA has brief server hiccups
+  if (res.status === 404) return { results: [], meta: { results: { total: 0 } } };
+  if (res.status === 429) throw new Error("openFDA's rate limit was reached. Wait a minute and search again, or add a free API key in the page config.");
+  if (!res.ok) throw new Error(`openFDA returned an error (${res.status}). Try a different spelling or search again.`);
+  return res.json();
+}
+// Encode one search term group for openFDA's query syntax (spaces become +, which openFDA reads as OR).
+const term = (field, value) => `${field}:${encodeURIComponent(quote(value))}`;
+const anyName = q => "(" + ["openfda.brand_name", "openfda.generic_name", "openfda.substance_name"].map(f => term(f, q)).join("+") + ")";
+const byGenerics = gs => "(" + gs.map(g => term("openfda.generic_name.exact", g)).join("+") + ")";
+
+/* ---------- State ---------- */
+let current = null;   // { q, generics, labelSearch, labelSkip, labelTotal, seen:Map }
+
+/* ---------- Search flow ---------- */
+async function runSearch(q, { sample = false } = {}) {
+  q = q.trim();
+  if (q.length < 2) return;
+  $("#q").value = q;
+  if (!sample) { try { history.replaceState(null, "", "?q=" + encodeURIComponent(q)); } catch (e) {} }
+  setStatus(`<div class="loading"><div class="spin"></div>Searching openFDA for “${esc(q)}”…</div>`, "info");
+  $("#results").innerHTML = "";
+  $("#goBtn").disabled = true;
+  try {
+    // 1. Resolve the query to generic names (so "Lipitor" also finds every atorvastatin brand).
+    const gCount = await fda("label", { search: anyName(q), count: "openfda.generic_name.exact", limit: 1000 });
+    const generics = (gCount.results || []).map(r => r.term);
+    if (!generics.length) {
+      setStatus(`No FDA labels match “${esc(q)}”. Check the spelling, or try the generic name (for example “atorvastatin” instead of a misspelled brand).`, "err");
+      return;
+    }
+    // Keep generics that actually contain the matched ingredient; cap to keep URLs short.
+    const coreGenerics = generics.slice(0, 12);
+    const gSearch = byGenerics(coreGenerics);
+
+    // 2. In parallel: brand counts, generic counts, Drugs@FDA applications.
+    const [brands, gens, apps] = await Promise.all([
+      fda("label", { search: gSearch, count: "openfda.brand_name.exact", limit: 1000 }),
+      fda("label", { search: gSearch, count: "openfda.generic_name.exact", limit: 1000 }),
+      fda("drugsfda", { search: gSearch, limit: 100 })
+    ]);
+    // 3. A brand search (Mounjaro) shows only that brand's labels; a generic search (tirzepatide) shows every brand.
+    const qL = q.toLowerCase();
+    const brandMode = !generics.some(g => g.toLowerCase().includes(qL)) && (brands.results || []).some(b => b.term.toLowerCase().startsWith(qL));
+    const scope = brandMode ? `(${term("openfda.brand_name", q)})` : gSearch;
+    // Newest labels first, so each application's current label wins over older repackager copies.
+    let ls = `${scope}+AND+openfda.application_number:(NDA*+BLA*)`;
+    let labelData = await fda("label", { search: ls, limit: LABEL_PAGE, sort: "effective_time:desc" });
+    if (!labelData.results?.length) { // OTC monograph and unapproved products have no NDA/BLA; fall back to all labels.
+      ls = scope;
+      labelData = await fda("label", { search: ls, limit: LABEL_PAGE, sort: "effective_time:desc" });
+    }
+    const siblings = brandMode ? siblingBrands(brands.results || [], qL, generics) : [];
+    current = { q, brandMode, siblings, generics: coreGenerics, dbUpdated: labelData.meta?.last_updated || "", retrieved: new Date(), labelSearch: ls, labelSkip: LABEL_PAGE, labelTotal: labelData.meta?.results?.total || 0, seen: new Map(), groups: new Map(), sample };
+    hideStatus();
+    render({ q, brands: brands.results || [], gens: gens.results || [], apps: apps.results || [], appsTotal: apps.meta?.results?.total || 0, labels: labelData.results || [], sample });
+  } catch (err) {
+    const msg = err instanceof TypeError ? "Couldn't reach openFDA. Check your connection and search again." : err.message;
+    setStatus(esc(msg), "err");
+  } finally {
+    $("#goBtn").disabled = false;
+  }
+}
+
+// Other brands with the same ingredient, one per product family ("Zepbound" and "Zepbound KwikPen" count once).
+function siblingBrands(brandCounts, qL, generics) {
+  const gl = generics.map(g => g.toLowerCase()), seen = new Set(), out = [];
+  for (const { term: b } of brandCounts) {
+    const l = b.toLowerCase(), fam = l.split(/\s+/)[0];
+    if (l.startsWith(qL) || gl.includes(l) || gl.some(g => g.startsWith(fam)) || seen.has(fam)) continue;
+    seen.add(fam); out.push(b);
+  }
+  return out.slice(0, 8);
+}
+
+/* ---------- Rendering ---------- */
+function render({ q, brands, gens, apps, appsTotal, labels, sample }) {
+  const approvedApps = apps.filter(a => (a.submissions || []).some(s => s.submission_type === "ORIG" && s.submission_status === "AP"));
+  const root = $("#results");
+  root.innerHTML = `
+    <div class="summary">
+      <div>
+        <h2>${esc(q)}${sample ? '<span class="sample">Example search</span>' : ""}</h2>
+        <div class="stats">
+          <div class="stat"><b>${brands.length}</b><span>Brand names</span></div>
+          <div class="stat"><b>${gens.length}</b><span>Generic names</span></div>
+          <div class="stat"><b>${approvedApps.length}</b><span>Approved applications</span></div>
+          <div class="stat"><b>${current.labelTotal.toLocaleString()}</b><span>Labels searched</span></div>
+        </div>
+      </div>
+      <button class="btn ghost" type="button" id="shareBtn">Copy share link</button>
+    </div>
+
+    ${provenance()}
+
+    <section class="block" aria-labelledby="h-uses">
+      <div class="block-head"><h3 id="h-uses">Used for</h3><span class="hint">Everyday name, medical term and ICD-10-CM code</span></div>
+      ${scopeNote()}
+      <div id="usesList"></div>
+    </section>
+
+    <section class="block" aria-labelledby="h-ind">
+      <div class="block-head"><h3 id="h-ind">Full indication text</h3><span class="hint">From the “Indications and Usage” section of each label, duplicates merged</span></div>
+      <ul class="ind-list" id="indList"></ul>
+      <div id="moreWrap"></div>
+    </section>
+
+    <div class="names">
+      <section class="block" aria-labelledby="h-brand">
+        <div class="block-head"><h3 id="h-brand">Brand names</h3><span class="hint">Labels on file</span></div>
+        ${chipList(brands, "brand")}
+      </section>
+      <section class="block" aria-labelledby="h-gen">
+        <div class="block-head"><h3 id="h-gen">Generic names</h3><span class="hint">Labels on file</span></div>
+        ${chipList(gens, "generic")}
+      </section>
+    </div>
+
+    <section class="block" aria-labelledby="h-app">
+      <div class="block-head"><h3 id="h-app">FDA applications</h3><span class="hint">Drugs@FDA · ${appsTotal > apps.length ? `first ${apps.length} of ${appsTotal}` : `${apps.length} total`}</span></div>
+      ${appTable(apps)}
+    </section>`;
+  appendLabels(labels);
+  $("#shareBtn").onclick = share;
+}
+
+function provenance() {
+  const raw = `${API}/label.json?search=${current.labelSearch}&limit=${LABEL_PAGE}&sort=effective_time:desc`;
+  const when = current.retrieved.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  return `<details class="prov"><summary>Where this information comes from</summary>
+    <ul>
+      <li><b>Indications</b> are quoted from section 1, “Indications and Usage”, of FDA-approved drug labels (Structured Product Labeling), retrieved live from the <a href="https://open.fda.gov/apis/drug/label/" target="_blank" rel="noopener">openFDA drug label API</a>. Only the newest label for each FDA application is used.</li>
+      <li><b>Applications and approval dates</b> come from <a href="https://open.fda.gov/apis/drug/drugsfda/" target="_blank" rel="noopener">Drugs@FDA via openFDA</a>.</li>
+      <li><b>Everyday names and ICD-10-CM codes</b> are added by this site from its own condition list. They are not part of the FDA label.</li>
+      <li>Retrieved ${esc(when)}. openFDA database last updated ${fmtDate((current.dbUpdated || "").replace(/-/g, ""))}.</li>
+      <li>New to terms like “label”, “indication” or “NDA”? See the <a href="glossary.html">glossary</a>.</li>
+      <li>Tap <b>Source</b> on any item to see the exact label wording, label version and a link to the full label on DailyMed (National Library of Medicine). <a href="${esc(raw)}" target="_blank" rel="noopener">View the raw openFDA data ↗</a></li>
+    </ul>
+  </details>`;
+}
+
+function scopeNote() {
+  if (!current.brandMode) return "";
+  const g = title(current.generics[0]);
+  const sib = current.siblings.length
+    ? ` ${esc(g)} is also sold as ${current.siblings.map(b => `<button type="button" class="linkish" data-q="${esc(b)}">${esc(brandCase(b))}</button>`).join(", ")}, which may be approved for different uses.`
+    : "";
+  return `<p class="scope-note">Showing <b>${esc(brandCase(current.q))}</b> only.${sib} <button type="button" class="linkish" data-q="${esc(current.generics[0])}">See all ${esc(g)} brands</button></p>`;
+}
+const brandCase = b => b === b.toUpperCase() ? title(b) : b;
+
+function chipList(items, cls) {
+  if (!items.length) return `<p class="hint">None on file.</p>`;
+  const sorted = [...items].sort((a, b) => b.count - a.count);
+  const limit = 24;
+  const chip = r => `<button type="button" class="chip ${cls}" data-q="${esc(r.term)}" title="Search ${esc(title(r.term))}">${esc(cls === "brand" ? r.term : title(r.term))}<small>${r.count}</small></button>`;
+  const shown = sorted.slice(0, limit).map(chip).join("");
+  const rest = sorted.slice(limit);
+  return `<div class="chips">${shown}${rest.length ? `<span class="chips" hidden>${rest.map(chip).join("")}</span><button type="button" class="more-chips" data-expand>+ ${rest.length} more</button>` : ""}</div>`;
+}
+
+function appTable(apps) {
+  if (!apps.length) return `<p class="hint">No Drugs@FDA applications matched. This is common for over-the-counter monograph products.</p>`;
+  const rows = apps.map(a => {
+    const orig = (a.submissions || []).find(s => s.submission_type === "ORIG");
+    const kind = (a.application_number.match(/^[A-Z]+/) || [""])[0];
+    const brand = [...new Set((a.products || []).map(p => p.brand_name))].join(", ");
+    const statuses = [...new Set((a.products || []).map(p => p.marketing_status))];
+    const status = statuses.includes("Prescription") ? "Prescription" : statuses.includes("Over-the-counter") ? "Over-the-counter" : statuses[0] || "—";
+    const pillCls = /Discontinued/i.test(status) ? "neutral" : "ok";
+    const approved = orig?.submission_status === "AP";
+    return { d: orig?.submission_status_date || "", html: `<tr>
+      <td class="mono"><span class="kind">${esc(kind)}</span>${esc(a.application_number.replace(/^[A-Z]+/, ""))}</td>
+      <td>${esc(title(brand))}</td>
+      <td>${esc(title(a.sponsor_name))}</td>
+      <td class="mono">${approved ? fmtDate(orig.submission_status_date) : "—"}</td>
+      <td><span class="pill ${pillCls}">${esc(status)}</span></td></tr>` };
+  }).sort((x, y) => x.d.localeCompare(y.d));
+  return `<div class="table-wrap"><table>
+    <thead><tr><th>Application</th><th>Brand</th><th>Sponsor</th><th>Approved</th><th>Status</th></tr></thead>
+    <tbody>${rows.map(r => r.html).join("")}</tbody></table></div>
+    <p class="hint">NDA = new drug application · ANDA = generic · BLA = biologic.</p>`;
+}
+
+function appendLabels(labels) {
+  const list = $("#indList");
+  for (const L of labels) {
+    const raw = (L.indications_and_usage || L.purpose || []).join(" ").trim();
+    if (!raw) continue;
+    const o = L.openfda || {};
+    const brand = (o.brand_name || [])[0] || "";
+    const appNo = (o.application_number || [])[0] || "";
+    // Group by FDA application. Labels arrive newest first, so later labels for the same application are
+    // older copies (often repackagers) and are skipped. Products without an NDA/BLA/ANDA share one group.
+    const gKey = /^(NDA|BLA|ANDA)/.test(appNo) ? appNo : "other";
+    let grp = current.groups.get(gKey);
+    if (!grp) current.groups.set(gKey, grp = { app: gKey, brands: new Set(), generic: (o.generic_name || [])[0] || "", conditions: new Map(), others: new Map(), used: false });
+    (o.brand_name || []).forEach(b => grp.brands.add(b));
+    if (grp.used && gKey !== "other") continue;
+    grp.used = true;
+    const src = { brand: brandCase(brand || (o.generic_name || [])[0] || ""), app: appNo, maker: (o.manufacturer_name || [])[0] || "",
+      date: L.effective_time, version: L.version, setId: L.set_id || (o.spl_set_id || [])[0] || "" };
+    collectConditions(raw, grp, src);
+    const key = normalize(raw);
+    if (current.seen.has(key)) {           // same wording already shown: add this brand to it
+      const card = current.seen.get(key);
+      card.brands.add(brand);
+      card.el.querySelector(".ind-brands").innerHTML = brandLine(card.brands);
+      continue;
+    }
+    const li = document.createElement("li");
+    li.className = "ind";
+    const app = (o.application_number || [])[0] || "";
+    const setId = L.set_id || (o.spl_set_id || [])[0];
+    li.innerHTML = `
+      <div class="ind-top">
+        <div>
+          <p class="ind-title">${esc(title((o.generic_name || [])[0] || brand))}</p>
+          <div class="ind-brands"></div>
+        </div>
+        <span class="pill ${/^(NDA|BLA|ANDA)/.test(app) ? "ok" : "neutral"}">${/^(NDA|BLA|ANDA)/.test(app) ? "FDA approved" : "Unapproved / OTC monograph"}</span>
+      </div>
+      <div class="ind-meta">
+        ${app ? `<span class="mono">${esc(app)}</span>` : ""}
+        ${o.manufacturer_name ? `<span>${esc(o.manufacturer_name[0])}</span>` : ""}
+        ${o.route ? `<span>${esc(title(o.route.join(", ")))}</span>` : ""}
+        <span>Label ${L.version ? `v${esc(L.version)}, ` : ""}effective ${fmtDate(L.effective_time)}</span>
+      </div>
+      <div class="ind-body">${formatIndications(raw)}</div>
+      <div class="ind-actions">
+        <button type="button" class="textbtn" data-toggle hidden>Show full text</button>
+        ${setId ? `<a href="https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=${encodeURIComponent(setId)}" target="_blank" rel="noopener">Full label on DailyMed ↗</a>` : ""}
+      </div>`;
+    list.appendChild(li);
+    const entry = { el: li, brands: new Set([brand]) };
+    li.querySelector(".ind-brands").innerHTML = brandLine(entry.brands);
+    current.seen.set(key, entry);
+    const body = li.querySelector(".ind-body");
+    if (body.scrollHeight > 260) { li.classList.add("clamped"); li.querySelector("[data-toggle]").hidden = false; }
+  }
+  if (!list.children.length) list.innerHTML = `<li class="status info">These labels don't include an Indications and Usage section.</li>`;
+  renderConditions();
+  const remaining = current.labelTotal - current.labelSkip;
+  $("#moreWrap").innerHTML = remaining > 0 && current.labelSkip < 1000
+    ? `<button type="button" class="btn ghost" id="moreLabels">Load more labels (${remaining.toLocaleString()} remaining)</button>` : "";
+  const more = $("#moreLabels");
+  if (more) more.onclick = loadMore;
+}
+
+function brandLine(set) {
+  const b = [...set].filter(Boolean);
+  return b.length ? `Sold as <b>${b.slice(0, 6).map(esc).join("</b>, <b>")}</b>${b.length > 6 ? ` and ${b.length - 6} more` : ""}` : "";
+}
+
+async function loadMore(e) {
+  const btn = e.currentTarget;
+  btn.disabled = true; btn.textContent = "Loading…";
+  try {
+    const d = await fda("label", { search: current.labelSearch, limit: LABEL_PAGE, skip: current.labelSkip, sort: "effective_time:desc" });
+    current.labelSkip += LABEL_PAGE;
+    appendLabels(d.results || []);
+  } catch (err) {
+    btn.disabled = false; btn.textContent = "Couldn't load. Try again";
+  }
+}
+
+const normalize = s => s.toLowerCase().replace(/^\s*(\d+\s+)?indications\s*(and|&)\s*usage/, "").replace(/[^a-z0-9]+/g, " ").trim().slice(0, 600);
+
+// Turn openFDA's flattened section text into headings, bullets and a highlighted "Limitations of Use".
+function formatIndications(raw) {
+  let t = raw.replace(/^\s*(\d+\s+)?(INDICATIONS\s*(AND|&)\s*USAGE|INDICATIONS|USES?)\s*:?\s*/i, "").replace(/\s+/g, " ").trim();
+  // Split on numbered subsections like "1.1 Hyperlipidemia".
+  const parts = t.split(/\s(?=\d{1,2}\.\d{1,2}\s+[A-Z])/);
+  return parts.map(p => {
+    const m = p.match(/^(\d{1,2}\.\d{1,2})\s+(.+?)(?=\s+[A-Z][a-z]+\s+[a-z]|\s+\(|$)/);
+    let head = "", body = p;
+    if (m && m[2].length < 90) { head = `<h4>${esc(m[1])} ${esc(m[2])}</h4>`; body = p.slice(m[0].length).trim(); }
+    return head + formatParagraph(body);
+  }).join("");
+}
+function formatParagraph(p) {
+  if (!p) return "";
+  const lim = p.split(/\bLimitations? of Use:?/i);
+  let main = lim[0].trim(), out = "";
+  // Bullet lists: labels flatten "•" bullets into the text.
+  if (/[•●▪]/.test(main)) {
+    const [lead, ...items] = main.split(/\s*[•●▪]\s*/);
+    out += (lead ? `<p>${esc(lead)}</p>` : "") + `<ul>${items.filter(Boolean).map(i => `<li>${esc(i)}</li>`).join("")}</ul>`;
+  } else if (main) {
+    out += `<p>${esc(main)}</p>`;
+  }
+  if (lim.length > 1) out += `<p class="lim"><strong>Limitations of use:</strong> ${esc(lim.slice(1).join(" ").replace(/^[\s•●▪]+/, "").replace(/\s*[•●▪]\s*/g, " · "))}</p>`;
+  return out;
+}
+
+/* ---------- Plain-language conditions ---------- */
+
+
+// Text that describes what a drug is NOT for, which must not produce a condition.
+const stripExclusions = t => t
+  .replace(/\b(e\.g|i\.e|etc|vs|approx)\./gi, m => m.replace(/\./g, ""))
+  .replace(/limitations? of use:?.*?(?=\s\d{1,2}\.\d{1,2}\s+[A-Z]|$)/gis, " ")
+  .replace(/[^.]*\b(not (been )?(established|indicated|recommended|studied)|should not be used)\b[^.]*\./gi, " ")
+  // Standard blood-pressure boilerplate names risk factors and outcomes, not indications.
+  .replace(/[^.]*\b(cardiovascular risk|lowering blood pressure|blood pressure reduction|many patients will require|largest reductions|numerous antihypertensive drugs|elevated systolic or diastolic pressure|absolute (benefit|risk)|relative risk|higher risk|aggressive treatment|lower blood pressure goal|outcome benefit|additional approved indications|antihypertensive drugs|see clinical studies)\b[^.]*\./gi, " ");
+
+function collectConditions(raw, grp, src) {
+  let t = stripExclusions(raw.replace(/\s+/g, " ").replace(/^\s*(\d+\s+)?INDICATIONS\s*(AND|&)\s*USAGE\s*/i, ""));
+  const orig = t;   // same length as t; used to quote the label wording around each match
+  let found = 0;
+  for (const [re, medical, plain, icd] of CONDITIONS) {
+    const g = new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g");
+    if (!g.test(t)) continue;
+    g.lastIndex = 0;
+    const hit = g.exec(t);
+    t = t.replace(g, m => " ".repeat(m.length));
+    const c = grp.conditions.get(plain) || { plain, medical, icd, n: 0, order: grp.conditions.size, src, quote: quoteAround(orig, hit.index, hit[0].length) };
+    c.n++;
+    grp.conditions.set(plain, c);
+    found++;
+  }
+  if (!found) { // Nothing recognised: keep a short snippet of what the label says instead.
+    const m = raw.replace(/^\s*(\d+\s+)?(INDICATIONS\s*(AND|&)\s*USAGE|USES?)\s*:?\s*/i, "")
+      .match(/indicated (?:for|to|as|in)(?: the)?(?: treatment of)?\s+([^.•;]{4,120})/i);
+    const s = (m ? m[1] : "").trim().replace(/\s*\($/, "");
+    if (s) { const k = s.toLowerCase(); grp.others.set(k, (grp.others.get(k) || 0) + 1); }
+  }
+}
+
+// The label sentence (or ~160 characters) around a match, with the matched words marked.
+function quoteAround(text, i, len) {
+  const ss = text.lastIndexOf(". ", i);
+  let a = Math.max(ss < 0 ? 0 : ss + 2, i - 160, 0), b = text.indexOf(". ", i + len);
+  if (a > 0 && text[a - 1] !== " " && text.slice(a - 2, a) !== ". ") a = Math.min(i, text.indexOf(" ", a) + 1 || a);  // start on a word
+  b = b < 0 ? Math.min(text.length, i + len + 160) : Math.min(b + 1, i + len + 160);
+  const clean = x => x.replace(/\s+/g, " ");
+  return { before: (a > (ss < 0 ? 0 : ss + 2) ? "…" : "") + clean(text.slice(a, i)).replace(/^\s+/, ""), match: clean(text.slice(i, i + len)), after: clean(text.slice(i + len, b)) + (b < text.length && !/[.)]$/.test(text.slice(0, b)) ? "…" : "") };
+}
+const dailyMed = id => `https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=${encodeURIComponent(id)}`;
+
+function renderConditions() {
+  const el = $("#usesList");
+  if (!el) return;
+  const groups = [...current.groups.values()].filter(g => g.conditions.size || g.others.size);
+  if (!groups.length) { el.innerHTML = `<p class="hint">No indications found on these labels.</p>`; return; }
+  if (current.brandMode || groups.length === 1) {   // one product: a single merged list
+    const merged = { conditions: new Map(), others: new Map() };
+    for (const g of groups) {
+      g.conditions.forEach((c, k) => { const m = merged.conditions.get(k); m ? m.n += c.n : merged.conditions.set(k, { ...c, order: merged.conditions.size }); });
+      g.others.forEach((n, k) => merged.others.set(k, (merged.others.get(k) || 0) + n));
+    }
+    el.innerHTML = useList(merged);
+    return;
+  }
+  el.innerHTML = groups.map(g => `<div class="use-group">
+      <h4>${esc(groupName(g))}${g.generic && groupName(g).toLowerCase() !== g.generic.toLowerCase() ? ` <span>${esc(title(g.generic))}</span>` : ""}${g.app !== "other" ? ` <code>${esc(g.app)}</code>` : ""}</h4>
+      ${useList(g)}</div>`).join("");
+}
+
+// Prefer a real brand ("Mounjaro") over a generic-looking one ("Atorvastatin Calcium") for the group heading.
+function groupName(g) {
+  if (g.app === "other") return "Other products (no FDA application)";
+  const bs = [...g.brands], gen = g.generic.toLowerCase();
+  const b = bs.find(x => x.toLowerCase() !== gen && x !== x.toUpperCase()) || bs.find(x => x.toLowerCase() !== gen) || bs[0] || g.generic;
+  return brandCase(b);
+}
+
+function sourceBox(c) {
+  const s = c.src || {}, q = c.quote;
+  return `<details class="src"><summary>Source</summary>
+    ${q ? `<blockquote>${esc(q.before)}<mark>${esc(q.match)}</mark>${esc(q.after)}</blockquote>` : ""}
+    <dl>
+      <dt>Label</dt><dd>${esc(s.brand)}${s.maker ? ` · ${esc(s.maker)}` : ""}</dd>
+      ${s.app ? `<dt>Application</dt><dd class="mono">${esc(s.app)}</dd>` : ""}
+      <dt>Label version</dt><dd>${s.version ? `v${esc(s.version)}, ` : ""}effective ${fmtDate(s.date)}</dd>
+      <dt>Section</dt><dd>1 Indications and Usage</dd>
+      <dt>ICD-10-CM</dt><dd>${c.icd ? `${esc(c.icd)}, assigned by this site's condition list (not part of the FDA label)` : "No single code; this is a risk-reduction indication"}</dd>
+    </dl>
+    ${s.setId ? `<a href="${dailyMed(s.setId)}" target="_blank" rel="noopener">Open this label on DailyMed ↗</a>` : ""}
+  </details>`;
+}
+
+function useList(g) {
+  let conds = [...g.conditions.values()].sort((a, b) => a.order - b.order);
+  // Drop the catch-all "Arthritis" when a specific kind is already listed.
+  if (conds.some(c => /arthritis/i.test(c.plain) && c.medical !== "Arthritis")) conds = conds.filter(c => c.medical !== "Arthritis");
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  const rows = conds.map(c => `<li class="use"><div class="use-top"><b>${esc(c.plain)}</b>${c.icd ? `<code class="icd" title="ICD-10-CM code">${esc(c.icd)}</code>` : ""}</div>${c.plain.toLowerCase() !== c.medical.toLowerCase() ? `<span>${esc(c.medical)}</span>` : ""}${sourceBox(c)}</li>`);
+  const others = [...g.others.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6)
+    .map(([s]) => `<li class="use other"><b>${esc(cap(s.length > 90 ? s.slice(0, 88) + "…" : s))}</b><span>As written on the label</span></li>`);
+  return `<ul class="uses">${rows.concat(others).join("")}</ul>`;
+}
+
+/* ---------- UI plumbing ---------- */
+function setStatus(html, kind) { const s = $("#status"); s.className = "status " + kind; s.innerHTML = html; s.hidden = false; }
+function hideStatus() { $("#status").hidden = true; }
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 2200); }
+
+async function share() {
+  const url = location.origin + location.pathname + "?q=" + encodeURIComponent(current.q);
+  try {
+    if (!/^https?:/.test(location.protocol)) throw 0;
+    await navigator.clipboard.writeText(url);
+    toast("Link copied");
+  } catch (e) {
+    toast(/^https?:/.test(location.protocol) ? url : "Publish the page first to get a shareable link");
+  }
+}
+
+$("#searchForm").addEventListener("submit", e => { e.preventDefault(); runSearch($("#q").value); });
+document.addEventListener("click", e => {
+  const q = e.target.closest("[data-q]");
+  if (q) { runSearch(q.dataset.q); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+  const ex = e.target.closest("[data-expand]");
+  if (ex) { ex.previousElementSibling.hidden = false; ex.remove(); return; }
+  const tg = e.target.closest("[data-toggle]");
+  if (tg) { const card = tg.closest(".ind"); const c = card.classList.toggle("clamped"); tg.textContent = c ? "Show full text" : "Show less"; }
+});
+
+// Open in a working state: a shared ?q= link, otherwise a labeled example search.
+const initial = new URLSearchParams(location.search).get("q");
+runSearch(initial || DEFAULT_QUERY, { sample: !initial });
+</script>
+</body>
+</html>
